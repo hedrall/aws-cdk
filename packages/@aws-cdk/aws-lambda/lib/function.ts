@@ -8,6 +8,7 @@ import * as sqs from '@aws-cdk/aws-sqs';
 import { Annotations, CfnResource, Duration, Fn, Lazy, Names, Stack } from '@aws-cdk/core';
 import { Construct } from 'constructs';
 import { Code, CodeConfig } from './code';
+import { ICodeSigningConfig } from './code-signing-config';
 import { EventInvokeConfigOptions } from './event-invoke-config';
 import { IEventSource } from './event-source';
 import { FileSystem } from './filesystem';
@@ -290,6 +291,13 @@ export interface FunctionOptions extends EventInvokeConfigOptions {
    * @default - AWS Lambda creates and uses an AWS managed customer master key (CMK).
    */
   readonly environmentEncryption?: kms.IKey;
+
+  /**
+   * Code signing config associated with this function
+   *
+   * @default - Not Sign the Code
+   */
+  readonly codeSigningConfig?: ICodeSigningConfig;
 }
 
 export interface FunctionProps extends FunctionOptions {
@@ -527,6 +535,13 @@ export class Function extends FunctionBase {
   private _logGroup?: logs.ILogGroup;
 
   /**
+   * Code signing config associated with this function
+   *
+   * @default - Not Sign the Code
+   */
+  public readonly codeSigningConfig?: ICodeSigningConfig;
+
+  /**
    * Environment variables for this function
    */
   private environment: { [key: string]: EnvironmentConfig } = {};
@@ -611,6 +626,8 @@ export class Function extends FunctionBase {
       }];
     }
 
+    this.codeSigningConfig = props.codeSigningConfig;
+
     const resource: CfnFunction = new CfnFunction(this, 'Resource', {
       functionName: this.physicalName,
       description: props.description,
@@ -641,6 +658,7 @@ export class Function extends FunctionBase {
       }),
       kmsKeyArn: props.environmentEncryption?.keyArn,
       fileSystemConfigs,
+      codeSigningConfigArn: this.codeSigningConfig?.codeSigningConfigArn,
     });
 
     resource.node.addDependency(this.role);
